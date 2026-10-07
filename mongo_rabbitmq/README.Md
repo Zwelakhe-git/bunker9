@@ -1,0 +1,1 @@
+a personal project for experimenting the use of fast api, mongo and rabbitmq for a chatting application
