@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f6f8" />
+    <title>Motion Studio &mdash; CSS animation editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Motion Studio home">
+          <span class="brand-icon"><span></span><span></span><span></span></span>
+          <span>motion<span class="brand-light">studio</span></span>
+        </a>
+        <div class="project-name"><span class="crumb">Projects</span><span class="slash">/</span><input id="animation-title" class="title-input" value="Untitled animation" aria-label="Animation title" title="Click to rename this animation" /><span class="save-dot" title="Saved"></span></div>
+        <div class="top-actions"><span class="autosave"><span class="cloud-dot"></span> All changes saved</span><button class="button button-quiet" id="reset-btn" title="Reset styles">Reset</button><button class="button button-primary" id="export-top">Export CSS <span aria-hidden="true">&#8599;</span></button></div>
+      </header>
+
+      <main class="workspace">
+        <section class="canvas-column">
+          <div class="canvas-heading">
+            <div><p class="eyebrow">CANVAS</p><h1>Make it move<span class="heading-period">.</span></h1></div>
+            <div class="canvas-tools"><button class="tool-button active" id="grid-toggle" title="Toggle grid" aria-label="Toggle grid"><svg viewBox="0 0 20 20"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z"/></svg></button><span class="tool-divider"></span><button class="tool-button" id="zoom-out" aria-label="Zoom out">&#8722;</button><span class="zoom-value" id="zoom-value">100%</span><button class="tool-button" id="zoom-in" aria-label="Zoom in">+</button><button class="tool-button fit-button" id="fit-btn">Fit</button></div>
+          </div>
+          <div class="stage-wrap" id="stage-wrap">
+            <div class="stage-grid" id="stage-grid"></div>
+            <div class="stage-badge"><span class="live-dot"></span> PREVIEW</div>
+            <div class="stage-hint" id="stage-hint">Your element, ready for its close-up.</div>
+            <div class="object-shadow" id="object-shadow"><div class="motion-object" id="motion-object" tabindex="0" aria-label="Animated shape, draggable"><span class="object-star">&#10035;</span><span class="resize-handle handle-n" data-resize="n"></span><span class="resize-handle handle-ne" data-resize="ne"></span><span class="resize-handle handle-e" data-resize="e"></span><span class="resize-handle handle-se" data-resize="se"></span><span class="resize-handle handle-s" data-resize="s"></span><span class="resize-handle handle-sw" data-resize="sw"></span><span class="resize-handle handle-w" data-resize="w"></span><span class="resize-handle handle-nw" data-resize="nw"></span></div></div>
+            <div class="stage-coordinates" id="coordinates">X 0&nbsp;&nbsp; Y 0</div>
+          </div>
+
+          <section class="timeline-card" aria-label="Animation timeline">
+            <div class="timeline-head"><div class="timeline-title"><span class="timeline-icon">&#9719;</span><div><h2>Timeline</h2><span id="timeline-subtitle">Record your first keyframe</span></div></div><div class="timeline-actions"><div class="duration-control"><span>Duration</span><strong id="duration-label">2.0s</strong></div><button class="icon-action" id="duration-minus" aria-label="Decrease duration">&#8722;</button><button class="icon-action" id="duration-plus" aria-label="Increase duration">+</button></div></div>
+            <div class="ruler-wrap"><div class="ruler-label">TIME</div><div class="ruler" id="ruler"><span>0s</span><span>0.5s</span><span>1.0s</span><span>1.5s</span><span>2.0s</span></div></div>
+            <div class="track-row"><div class="track-label"><span class="track-thumb"></span><span>Shape</span></div><div class="track" id="track"><div class="playhead" id="playhead"><span></span></div><div class="keyframe-marker start-marker" data-time="0"></div><div class="keyframe-marker end-marker" data-time="100"></div></div></div>
+            <div class="timeline-footer"><div class="transport"><button id="rewind-btn" class="transport-button" aria-label="Go to beginning">|&#9664;</button><button id="play-btn" class="play-button" aria-label="Play animation"><span id="play-icon">&#9654;</span></button><button id="end-btn" class="transport-button" aria-label="Go to end">&#9654;|</button><span class="time-readout"><b id="current-time">0.00</b><span> / </span><span id="total-time">2.00s</span></span></div><div class="record-controls"><span class="recording-indicator" id="recording-indicator"><span></span> RECORDING</span><button id="record-btn" class="record-button"><span class="record-disc"></span><span id="record-label">Record animation</span></button><button id="pause-btn" class="pause-button" hidden><span id="pause-icon">&#8545;</span><span id="pause-label">Pause</span></button><button id="stop-btn" class="stop-button" hidden>Stop recording</button></div></div>
+          </section>
+          <div class="tip"><span class="tip-icon">&#10022;</span><span><strong>Tip:</strong> Change any property while recording to add a keyframe. Drag the shape on canvas to capture its position.</span><button id="tip-close" aria-label="Dismiss tip">&times;</button></div>
+        </section>
+
+        <aside class="inspector">
+          <div class="inspector-header"><div><p class="eyebrow">INSPECTOR</p><h2>Shape styles</h2></div><button class="more-button" aria-label="More options">&#183;&#183;&#183;</button></div>
+          <div class="selected-layer"><span class="layer-preview"><span class="layer-mini"></span></span><div><strong>Shape 01</strong><span id="size-summary">Rectangle &middot; 160 &times; 160</span></div><span class="selection-check">&#10003;</span></div>
+          <div class="inspector-scroll">
+            <section class="property-section"><div class="section-heading"><h3>Appearance</h3><button class="collapse-button">&#8963;</button></div>
+              <label class="field-label" for="fill-mode">Fill</label>
+              <div class="fill-tabs"><button class="fill-tab active" data-mode="solid">Solid</button><button class="fill-tab" data-mode="gradient">Gradient</button></div>
+              <div class="color-field" id="solid-field"><span class="color-swatch" id="solid-swatch"><input type="color" id="color-input" value="#7868f6" aria-label="Fill color" /></span><input class="hex-input" id="hex-input" value="#7868F6" spellcheck="false" /><span class="color-opacity">100%</span></div>
+              <div class="gradient-fields" id="gradient-fields" hidden><div class="color-field"><span class="color-swatch"><input type="color" id="gradient-a" value="#7868f6" aria-label="First gradient color" /></span><input class="hex-input" id="gradient-a-hex" value="#7868F6" spellcheck="false" /></div><div class="gradient-arrow">&#8594;</div><div class="color-field"><span class="color-swatch"><input type="color" id="gradient-b" value="#e69aff" aria-label="Second gradient color" /></span><input class="hex-input" id="gradient-b-hex" value="#E69AFF" spellcheck="false" /></div><label class="field-label angle-label">Angle <input id="gradient-angle" type="number" min="0" max="360" value="135" />&#176;</label></div>
+              <div class="split-fields"><label class="field-label">Opacity <span class="inline-value" id="opacity-value">100%</span><input type="range" id="opacity" min="0" max="100" value="100" /></label><label class="field-label">Corner radius <span class="inline-value" id="radius-value">24 px</span><input type="range" id="radius" min="0" max="80" value="24" /></label></div>
+              <label class="field-label shadow-label">Shadow <span class="toggle"><input type="checkbox" id="shadow-toggle" checked /><span></span></span></label>
+              <div class="shadow-fields"><div class="mini-field"><span>Blur</span><input type="number" id="shadow-blur" value="28" min="0" max="100" /></div><div class="mini-field"><span>Y offset</span><input type="number" id="shadow-y" value="14" min="-50" max="100" /></div><div class="color-swatch shadow-color"><input type="color" id="shadow-color" value="#6659d9" aria-label="Shadow color" /></div></div>
+            </section>
+            <section class="property-section"><div class="section-heading"><h3>Transform</h3><button class="collapse-button">&#8963;</button></div><div class="control-grid size-grid"><label class="field-label">Width<input class="unit-input" id="width" type="number" value="160" min="20" max="800" step="1" /><span class="unit">px</span></label><label class="field-label">Height<input class="unit-input" id="height" type="number" value="160" min="20" max="800" step="1" /><span class="unit">px</span></label><label class="field-label">Rotate<input class="unit-input" id="rotate" type="number" value="0" step="1" /><span class="unit">&#176;</span></label><label class="field-label">Scale<input class="unit-input" id="scale" type="number" value="1" min="0.1" max="3" step="0.05" /><span class="unit">&#215;</span></label><label class="field-label">Move X<input class="unit-input" id="move-x" type="number" value="0" min="-500" max="500" /><span class="unit">px</span></label><label class="field-label">Move Y<input class="unit-input" id="move-y" type="number" value="0" min="-500" max="500" /><span class="unit">px</span></label></div>
+              <div class="split-fields"><label class="field-label">Tilt X <span class="inline-value" id="tilt-x-value">0&#176;</span><input type="range" id="tilt-x" min="-180" max="180" value="0" /></label><label class="field-label">Tilt Y <span class="inline-value" id="tilt-y-value">0&#176;</span><input type="range" id="tilt-y" min="-180" max="180" value="0" /></label></div>
+              <label class="field-label perspective-label">Perspective <span class="inline-value" id="perspective-value">800 px</span><input type="range" id="perspective" min="100" max="2000" step="50" value="800" /></label>
+            </section>
+            <section class="property-section easing-section"><div class="section-heading"><h3>Animation</h3><span class="section-tag">CSS</span></div><label class="field-label">Easing<select id="easing"><option value="ease-in-out">Ease in-out</option><option value="linear">Linear</option><option value="ease">Ease</option><option value="cubic-bezier(.34,1.56,.64,1)">Spring</option></select></label><label class="field-label direction-label">Direction<select id="direction"><option value="normal">Normal</option><option value="alternate">Alternate</option><option value="reverse">Reverse</option></select></label></section>
+          </div>
+          <div class="inspector-bottom"><span class="live-dot"></span> Changes update live <span class="shortcut">&#8984; &#8629;</span></div>
+        </aside>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="export-dialog" id="export-dialog"><div class="dialog-head"><div><p class="eyebrow">YOUR ANIMATION</p><h2>CSS, ready to go.</h2></div><button id="close-dialog" class="close-dialog" aria-label="Close">&times;</button></div><p class="dialog-description">Drop this into your stylesheet and give your element a little life.</p><div class="code-window"><div class="code-toolbar"><span><i></i><i></i><i></i> animation.css</span><button id="copy-css">Copy code</button></div><pre><code id="css-output"></code></pre></div><div class="dialog-footer"><span class="dialog-note">Made with <span>&#10035;</span> Motion Studio</span><button class="button button-primary" id="download-css">Download .css <span>&#8595;</span></button></div></dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

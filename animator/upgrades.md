@@ -1,0 +1,3 @@
+- lets add changing the size of the element (width, height). it can be stretched or shrunk using the mouse, like you can change shapes in power point. so add drag points on the element. also do add inputs for the size (w, h)
+- for the input elements (scale, rotate, move...), make it so that i can change the values by moving the mouse wheel when i focuesed on it.
+- allow editing the animation title at the top when clicked. the title set by the user will be the name of the animation in the css code
