@@ -150,15 +150,17 @@ button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px sol
 @media (max-width: 760px) {
   .sidebar { display: none; }
   .conversation { height: 100svh; max-height: 100svh; }
-  .topbar { height: 58px; flex-basis: 58px; justify-content: space-between; padding: 0 14px; }
+  .topbar { position: relative; display: block; height: 78px; flex-basis: 78px; padding: 0 14px; }
   .mobile-brand { display: flex; align-items: center; gap: 7px; color: #45443f; font: 700 13px 'Manrope', sans-serif; letter-spacing: -.4px; }
-  .mobile-library-toggle { width: 30px; height: 30px; display: grid; place-items: center; margin-left: 3px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #77746d; }
+  .mobile-brand { position: absolute; top: 11px; left: 14px; }
+  .mobile-library-toggle { position: absolute; top: 42px; left: 12px; width: 30px; height: 30px; display: grid; place-items: center; margin: 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #77746d; }
   .mobile-library-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
   .mobile-brand .brand-mark { width: 27px; height: 27px; border-radius: 9px; }
   .mobile-brand .brand-mark svg { width: 20px; height: 20px; }
-  .conversation-title { position: absolute; left: 50%; transform: translateX(-50%); gap: 6px; font-size: 10px; white-space: nowrap; }
-  .mobile-speaker-toggle { display: flex; align-items: center; gap: 3px; padding: 3px; border: 0; border-radius: 10px; background: transparent; }
-  .mobile-theme-toggle { width: 30px; height: 30px; display: grid; place-items: center; margin-left: auto; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #77746d; font-size: 19px; }
+  .conversation-title { position: absolute; top: 43px; left: 57px; right: 12px; display: flex; min-width: 0; align-items: center; gap: 7px; transform: none; font-size: 10px; white-space: nowrap; }
+  .chat-title-button { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-speaker-toggle { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 3px; padding: 3px; border: 0; border-radius: 10px; background: transparent; }
+  .mobile-theme-toggle { position: absolute; top: 12px; right: 60px; width: 28px; height: 28px; display: grid; place-items: center; margin: 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #77746d; font-size: 19px; }
   .mobile-speaker-toggle .avatar { width: 28px; height: 28px; }
   .chevron { color: #8e8b84; font-size: 13px; }
   .mobile-speaker-menu { display: block; }
