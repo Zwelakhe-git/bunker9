@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   color: #30312e;
   background: #f8f7f4;
@@ -26,3 +27,21 @@ body { min-height: 100svh; }
 button, textarea { font: inherit; }
 button { color: inherit; }
 ::selection { background: #e7def7; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-ink: #eeedf2;
+  --color-muted: #aaa9b2;
+  --color-soft: #292a30;
+  --color-paper: #222329;
+  --color-canvas: #191a1f;
+  --color-accent: #b5a1e6;
+  --color-accent-dark: #d0c3f0;
+  --color-lilac: #34303e;
+  --color-sage: #29332e;
+  --color-line: #34353c;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+:root[data-theme="dark"] ::selection { background: #51436f; }
