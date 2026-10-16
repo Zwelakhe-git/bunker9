@@ -26,6 +26,9 @@ body{
   width: 100%;
   background-image: var(--charts-area-bg);
   overflow: auto;
+  padding-bottom: 145px;
+  scroll-snap-type: y mandatory;
+  scroll-snap-align: end;
 }
 #message-area {
   width: 95%;

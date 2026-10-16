@@ -1,16 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import { apiClient } from "./api/client";
+//import { apiClient } from "./api/client";
 import type { Message, User } from "./types";
 import arrow_up from "./assets/arrow_up.ico";
 import { MessageBubble } from "./components/MessageBubble";
 
 export default function App() {
+    const cacheKey = "thought_capture_chats";
     const [ characters, setCharacters] = useState<User[]>([]);
-    const [ messages, setMessages ] = useState<Message[]>([]);
+    const [ messages, setMessages ] = useState<Message[]>(() : Message[] => {
+        if(localStorage.getItem(cacheKey)){
+            try {
+                return JSON.parse(localStorage.getItem(cacheKey) ?? "[]") as Message[];
+            } catch(e){
+                console.error(e);
+            }
+        }
+        return [];
+    });
     const [ currentSpeaker, setCurrentSpeaker ] = useState<string>("");
     const [ typing, setTyping ] = useState<boolean>(false);
 
     const messageInputRef = useRef<HTMLTextAreaElement>(null);
+    const messageAreaRef = useRef<HTMLDivElement>(null);
+    const chatsAreaRef = useRef<HTMLDivElement>(null);
+
+
     useEffect(() => {
         setCharacters(() => {
             const chars = [
@@ -64,10 +78,18 @@ export default function App() {
         const msg = messageInputRef.current.value;
         if(!msg.length) return;
         setMessages((prev: Message[]) => {
-            return [...prev,
+            const messages = [...prev,
                 {user_id: currentSpeaker,
                 content: msg}
-            ]
+            ];
+            requestAnimationFrame(() => {
+                chatsAreaRef.current?.scrollTo({
+                    top: chatsAreaRef.current.scrollHeight,
+                    behavior: "smooth"
+                })
+            });
+            localStorage.setItem(cacheKey, JSON.stringify(messages));
+            return messages;
         });
         messageInputRef.current.value = "";
     }
@@ -85,7 +107,7 @@ export default function App() {
             </div>
         </div>
         <div id="right-panel" className="w-100 h-100">
-            <div className="chats-area d-flex flex-column gap-2 p-2">
+            <div ref={chatsAreaRef} className="chats-area d-flex flex-column gap-2 p-2">
                 {messages.map((msg, idx) => {
                     const person = characters.find(c => c.id === msg.user_id);
                     if(!person) return null;
@@ -99,7 +121,7 @@ export default function App() {
                     />
                 )}
             </div>
-            <div id="message-area" className="container" aria-label="Layout container">
+            <div ref={messageAreaRef} id="message-area" className="container" aria-label="Layout container">
                 <div id="message-box" className="rectangle bg-transparent" aria-label="Rectangle">
                     <textarea ref={messageInputRef} id="message-inp" placeholder="Message" onKeyDown={(e) => {
                         if(e.key === "Enter"){
