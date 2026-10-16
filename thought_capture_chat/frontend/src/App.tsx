@@ -1,150 +1,131 @@
 import { useEffect, useRef, useState } from "react";
-//import { apiClient } from "./api/client";
+import type { FormEvent, KeyboardEvent } from "react";
 import type { Message, User } from "./types";
-import arrow_up from "./assets/arrow_up.ico";
 import { MessageBubble } from "./components/MessageBubble";
 
+const cacheKey = "thought_capture_chats";
+const characters: User[] = [
+  { id: "c3c73676-5431-4f3b-b3d6-d6b8cbafdee8", name: "Inner voice" },
+  { id: "522e7309-9166-4f64-9d40-8d03505ebb70", name: "Self" },
+];
+
+function readMessages(): Message[] {
+  try {
+    const saved = localStorage.getItem(cacheKey);
+    return saved ? (JSON.parse(saved) as Message[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
-    const cacheKey = "thought_capture_chats";
-    const [ characters, setCharacters] = useState<User[]>([]);
-    const [ messages, setMessages ] = useState<Message[]>(() : Message[] => {
-        if(localStorage.getItem(cacheKey)){
-            try {
-                return JSON.parse(localStorage.getItem(cacheKey) ?? "[]") as Message[];
-            } catch(e){
-                console.error(e);
-            }
-        }
-        return [];
-    });
-    const [ currentSpeaker, setCurrentSpeaker ] = useState<string>("");
-    const [ typing, setTyping ] = useState<boolean>(false);
+  const [messages, setMessages] = useState<Message[]>(readMessages);
+  const [currentSpeaker, setCurrentSpeaker] = useState(characters[0].id);
+  const [draft, setDraft] = useState("");
+  const [mobileSpeakersOpen, setMobileSpeakersOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const speaker = characters.find((character) => character.id === currentSpeaker) ?? characters[0];
 
-    const messageInputRef = useRef<HTMLTextAreaElement>(null);
-    const messageAreaRef = useRef<HTMLDivElement>(null);
-    const chatsAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    localStorage.setItem(cacheKey, JSON.stringify(messages));
+    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
+  const sendMessage = (event?: FormEvent) => {
+    event?.preventDefault();
+    const content = draft.trim();
+    if (!content) return;
+    setMessages((previous) => [...previous, { user_id: currentSpeaker, content }]);
+    setDraft("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    textareaRef.current?.focus();
+  };
 
-    useEffect(() => {
-        setCharacters(() => {
-            const chars = [
-            {
-                id: "c3c73676-5431-4f3b-b3d6-d6b8cbafdee8",
-                name: "A really long name"
-            },
-            {
-                id: "522e7309-9166-4f64-9d40-8d03505ebb70",
-                name: "Self"
-            }
-            ];
-            setCurrentSpeaker(chars[0].id);
-            return chars;
-        });
-
-        
-    }, []);
-
-    useEffect(() => {
-        const onKeyPress = (e: KeyboardEvent) => {
-            if(e.shiftKey && e.ctrlKey){
-                e.preventDefault();
-                setCurrentSpeaker((uid: string) => {
-                    const uIdx = characters.findIndex(u => u.id == uid);
-                    return characters[(uIdx + 1) % characters.length].id;
-                });
-            }
-        }
-
-        window.addEventListener('keydown', onKeyPress);
-
-        return () => {
-            window.removeEventListener('keydown', onKeyPress);
-        }
-    }, [currentSpeaker]);
-
-    useEffect(() => {
-        if(typing){
-            console.log("user is typing");
-        } else {
-            console.log("not typing");
-        }
-    }, [typing]);
-
-    const sendMessage = () => {
-        if(!currentSpeaker.length || !messageInputRef.current){
-            return;
-        }
-    
-        const msg = messageInputRef.current.value;
-        if(!msg.length) return;
-        setMessages((prev: Message[]) => {
-            const messages = [...prev,
-                {user_id: currentSpeaker,
-                content: msg}
-            ];
-            requestAnimationFrame(() => {
-                chatsAreaRef.current?.scrollTo({
-                    top: chatsAreaRef.current.scrollHeight,
-                    behavior: "smooth"
-                })
-            });
-            localStorage.setItem(cacheKey, JSON.stringify(messages));
-            return messages;
-        });
-        messageInputRef.current.value = "";
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
     }
-    return (
-    <main id="artboard" className="d-flex artboard flex-row">
-        <div id="left-panel" className="w-12 h-100 border-1 p-2">
-            <div className="panel-title">
-                <h3>Characters</h3>
-            </div>
-            <div id="characters-list" className="w-100 d-flex gap-2 flex-column">
-                {characters.map((character, idx) => (
-                    <li key={idx * (5 + Math.random() * (5))} className={`character ${currentSpeaker == character.id && 'active'}`} onClick={()=>{ setCurrentSpeaker(character.id); }}>{character.name}</li>
-                ))
-                }
-            </div>
+  };
+
+  const handleDraftChange = (value: string) => {
+    setDraft(value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 144)}px`;
+    }
+  };
+
+  return (
+    <main className="app-shell">
+      <aside className="sidebar" aria-label="Conversation settings">
+        <a className="brand" href="#home" aria-label="Thoughtspace home">
+          <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 4.5c-5.5 0-9.5 3.8-9.5 9 0 2.8 1.2 4.8 3.2 6.4V25l5-2.4h1.4c5.7 0 9.4-3.5 9.4-8.4S21.6 4.5 16 4.5Z"/><path d="M12 14.5c1.1-2.8 2.7-4.2 4.8-4.2M15 17.7c2.1-.2 3.8-1 5.1-2.4"/></svg></span>
+          <span>thoughtspace</span>
+        </a>
+        <div className="sidebar-section">
+          <p className="section-label">YOUR VOICES</p>
+          <div className="speaker-list">
+            {characters.map((character, index) => (
+              <button key={character.id} className={`speaker-option ${currentSpeaker === character.id ? "selected" : ""}`} onClick={() => setCurrentSpeaker(character.id)} aria-pressed={currentSpeaker === character.id}>
+                <span className={`avatar avatar-${index}`} aria-hidden="true">{index === 0 ? "✳" : "Y"}</span>
+                <span>{character.name}</span>
+                {currentSpeaker === character.id && <span className="active-dot" aria-label="selected" />}
+              </button>
+            ))}
+          </div>
+          <p className="sidebar-hint">Choose who’s speaking. Switch voices whenever a thought takes a turn.</p>
         </div>
-        <div id="right-panel" className="w-100 h-100">
-            <div ref={chatsAreaRef} className="chats-area d-flex flex-column gap-2 p-2">
-                {messages.map((msg, idx) => {
-                    const person = characters.find(c => c.id === msg.user_id);
-                    if(!person) return null;
-                    return <MessageBubble key={idx * (1024 % (idx + 2^idx))} name={person.name} side={person.name.toLowerCase() === "self" ? "end" : "start"} content={msg.content}/>;
-                })}
-                {typing && (
-                    <MessageBubble
-                    name={characters.find(c => c.id == currentSpeaker)?.name ?? "slef"}
-                    side={(characters.find(c => c.id == currentSpeaker)?.name ?? "self").toLowerCase() === "self" ? "end" : "start"}
-                    content="..."
-                    />
-                )}
-            </div>
-            <div ref={messageAreaRef} id="message-area" className="container" aria-label="Layout container">
-                <div id="message-box" className="rectangle bg-transparent" aria-label="Rectangle">
-                    <textarea ref={messageInputRef} id="message-inp" placeholder="Message" onKeyDown={(e) => {
-                        if(e.key === "Enter"){
-                            if(!e.shiftKey && !e.ctrlKey){
-                                e.preventDefault();
-                                sendMessage();
-                            } else {
-                                messageInputRef.current && (messageInputRef.current.value += "\n");
-                            }
-                            
-                        }
-                    }} onChange={function(){
-                        messageInputRef.current && setTyping(messageInputRef.current.value.length > 0);
-                    }} onBlur={() => setTyping(false)}></textarea>
+        <div className="sidebar-note"><span className="note-icon">✦</span><p><strong>A space for unfinished thoughts.</strong><br />No audience, no pressure. Just get it out.</p></div>
+        <div className="privacy-note"><span className="privacy-dot" /> Saved on this device</div>
+      </aside>
+
+      <section className="conversation" id="home">
+        <header className="topbar">
+          <div className="mobile-brand"><span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 4.5c-5.5 0-9.5 3.8-9.5 9 0 2.8 1.2 4.8 3.2 6.4V25l5-2.4h1.4c5.7 0 9.4-3.5 9.4-8.4S21.6 4.5 16 4.5Z"/><path d="M12 14.5c1.1-2.8 2.7-4.2 4.8-4.2M15 17.7c2.1-.2 3.8-1 5.1-2.4"/></svg></span>thoughtspace</div>
+          <div className="conversation-title"><span className="status-mark" /> <span>Untitled thought</span></div>
+          <button className="mobile-speaker-toggle" onClick={() => setMobileSpeakersOpen((open) => !open)} aria-expanded={mobileSpeakersOpen} aria-label="Choose speaker"><span className={`avatar ${currentSpeaker === characters[1].id ? "avatar-1" : "avatar-0"}`}>{currentSpeaker === characters[1].id ? "Y" : "✳"}</span><span className="chevron">⌄</span></button>
+        </header>
+        {mobileSpeakersOpen && <div className="mobile-speaker-menu">{characters.map((character, index) => <button key={character.id} className={currentSpeaker === character.id ? "selected" : ""} onClick={() => { setCurrentSpeaker(character.id); setMobileSpeakersOpen(false); }}><span className={`avatar avatar-${index}`}>{index === 0 ? "✳" : "Y"}</span>{character.name}</button>)}</div>}
+
+        <div className="chat-scroll" ref={chatRef} aria-live="polite">
+          <div className="chat-content">
+            {messages.length === 0 ? (
+              <div className="welcome">
+                <div className="welcome-sparkle" aria-hidden="true">✳</div>
+                <p className="eyebrow">A LITTLE ROOM TO THINK</p>
+                <h1>Where should we<br className="desktop-break" /> start?</h1>
+                <p className="welcome-copy">A passing thought, a half-formed idea, a conversation you want to hear out loud. It can start anywhere.</p>
+                <div className="prompt-row"><span>“Something’s been on my mind…”</span><span>“Let me think this through”</span><span>“A scene I don’t want to forget”</span></div>
+              </div>
+            ) : (
+              <>
+                <div className="day-divider"><span /><small>YOUR THOUGHTS</small><span /></div>
+                <div className="message-list">
+                  {messages.map((message, index) => {
+                    const person = characters.find((character) => character.id === message.user_id);
+                    if (!person) return null;
+                    return <MessageBubble key={`${index}-${message.user_id}`} name={person.name} side={person.name === "Self" ? "end" : "start"} content={message.content} />;
+                  })}
                 </div>
-                <div id="forma-d29538a8-01be-4a3d-9896-a4b6bf2f0ecc" className="container bg-transparent" aria-label="Layout container">
-                    <button id="forma-7ef436e6-4eea-48fd-85f7-0fd04917c7b1" className="btn-primary" aria-label="Circle" onClick={sendMessage}>
-                        <img src={arrow_up} className="w-75 h-75" alt="arrow-icon"/>
-                    </button>
-                </div>
-            </div>
+              </>
+            )}
+          </div>
         </div>
-        
+
+        <footer className="composer-wrap">
+          <form className="composer" onSubmit={sendMessage}>
+            <div className="composer-context"><span className={`avatar composer-avatar ${speaker.name === "Self" ? "avatar-1" : "avatar-0"}`}>{speaker.name === "Self" ? "Y" : "✳"}</span><span>Speaking as <strong>{speaker.name}</strong></span></div>
+            <div className="composer-input-row">
+              <textarea ref={textareaRef} value={draft} onChange={(event) => handleDraftChange(event.target.value)} onKeyDown={handleKeyDown} placeholder="Let your thoughts wander…" rows={1} aria-label="Write a thought" />
+              <button className="send-button" type="submit" disabled={!draft.trim()} aria-label="Send thought"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button>
+            </div>
+            <div className="composer-foot"><span><kbd>↵</kbd> to send <span className="foot-separator">·</span> <kbd>shift ↵</kbd> for a new line</span><span className="gentle-reminder">Take your time <span>✦</span></span></div>
+          </form>
+          <p className="local-caption">Your conversation stays in this browser.</p>
+        </footer>
+      </section>
     </main>
   );
 }
