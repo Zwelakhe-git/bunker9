@@ -11,6 +11,10 @@ const defaultSpeakers: User[] = [
   { id: "522e7309-9166-4f64-9d40-8d03505ebb70", name: "Self" },
 ];
 
+function TrashIcon() {
+  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13M8 5.5V3.5h4v2M6 5.5l.8 11h6.4l.8-11M8.5 8.5v5M11.5 8.5v5" /></svg>;
+}
+
 function makeChat(name = "Untitled thought"): Chat {
   return { id: crypto.randomUUID(), name, messages: [] };
 }
@@ -37,11 +41,13 @@ export default function App() {
   const [theme, setTheme] = useState<"light" | "dark">(() => localStorage.getItem(themeKey) === "dark" ? "dark" : "light");
   const [draft, setDraft] = useState("");
   const [mobileSpeakersOpen, setMobileSpeakersOpen] = useState(false);
+  const [composerSpeakersOpen, setComposerSpeakersOpen] = useState(false);
   const [mobileChatsOpen, setMobileChatsOpen] = useState(false);
   const [editingSpeakerId, setEditingSpeakerId] = useState<string | null>(null);
   const [speakerNameDraft, setSpeakerNameDraft] = useState("");
   const [renamingChat, setRenamingChat] = useState(false);
   const [chatNameDraft, setChatNameDraft] = useState("");
+  const [chatActionsId, setChatActionsId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatNameRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -106,6 +112,7 @@ export default function App() {
     setChatNameDraft(chat.name);
     setRenamingChat(true);
     setMobileSpeakersOpen(false);
+    setComposerSpeakersOpen(false);
     setMobileChatsOpen(false);
   };
 
@@ -114,6 +121,27 @@ export default function App() {
     if (name) updateActiveChat((chat) => ({ ...chat, name }));
     setRenamingChat(false);
   };
+
+  const deleteChat = (chatId: string) => {
+    setWorkspace((previous) => {
+      const chats = previous.chats.filter((chat) => chat.id !== chatId);
+      const nextActive = previous.activeChatId === chatId ? chats[0]?.id : previous.activeChatId;
+      return { ...previous, chats, activeChatId: nextActive ?? "" };
+    });
+    setChatActionsId(null);
+    setDraft("");
+    setRenamingChat(false);
+  };
+
+  const updateMessage = (index: number, content: string) => updateActiveChat((chat) => ({
+    ...chat,
+    messages: chat.messages.map((message, messageIndex) => messageIndex === index ? { ...message, content } : message),
+  }));
+
+  const deleteMessage = (index: number) => updateActiveChat((chat) => ({
+    ...chat,
+    messages: chat.messages.filter((_, messageIndex) => messageIndex !== index),
+  }));
 
   const beginSpeakerRename = (character: User) => {
     setEditingSpeakerId(character.id);
@@ -130,6 +158,30 @@ export default function App() {
 
   const selectSpeaker = (id: string) => setWorkspace((previous) => ({ ...previous, currentSpeakerId: id }));
 
+  const cycleSpeaker = () => setWorkspace((previous) => {
+    if (!previous.speakers.length) return previous;
+    const currentIndex = Math.max(0, previous.speakers.findIndex((character) => character.id === previous.currentSpeakerId));
+    return { ...previous, currentSpeakerId: previous.speakers[(currentIndex + 1) % previous.speakers.length].id };
+  });
+
+  const addSpeaker = () => {
+    const character = { id: crypto.randomUUID(), name: `Character ${speakers.length + 1}` };
+    setWorkspace((previous) => ({ ...previous, speakers: [...previous.speakers, character], currentSpeakerId: character.id }));
+    setMobileSpeakersOpen(false);
+    setComposerSpeakersOpen(false);
+  };
+
+  useEffect(() => {
+    const handleShortcut = (event: globalThis.KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key === "Shift" && !event.repeat && !window.matchMedia("(max-width: 760px)").matches) {
+        event.preventDefault();
+        cycleSpeaker();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Chats and conversation settings">
@@ -143,10 +195,13 @@ export default function App() {
           <p className="section-label">YOUR CHATS <span>{workspace.chats.length}</span></p>
           <div className="chat-list">
             {workspace.chats.map((chat) => (
-              <button key={chat.id} className={`chat-option ${activeChat?.id === chat.id ? "selected" : ""}`} onClick={() => { setWorkspace((previous) => ({ ...previous, activeChatId: chat.id })); setDraft(""); setRenamingChat(false); }} aria-current={activeChat?.id === chat.id ? "page" : undefined}>
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12v9H9l-4 2v-11Z" /></svg>
-                <span>{chat.name || "Untitled thought"}</span>
-              </button>
+              <div key={chat.id} className={`chat-option-wrap ${activeChat?.id === chat.id ? "selected" : ""}`}>
+                <button className="chat-option" onClick={() => { setWorkspace((previous) => ({ ...previous, activeChatId: chat.id })); setChatActionsId(chat.id); setDraft(""); setRenamingChat(false); }} aria-current={activeChat?.id === chat.id ? "page" : undefined}>
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12v9H9l-4 2v-11Z" /></svg>
+                  <span>{chat.name || "Untitled thought"}</span>
+                </button>
+                {chatActionsId === chat.id && <button className="icon-action chat-delete" onClick={() => deleteChat(chat.id)} aria-label={`Delete ${chat.name || "chat"}`} title="Delete chat"><TrashIcon /></button>}
+              </div>
             ))}
           </div>
         </div>
@@ -157,10 +212,10 @@ export default function App() {
             {speakers.map((character, index) => (
               <div key={character.id} className={`speaker-option ${currentSpeakerId === character.id ? "selected" : ""}`}>
                 {editingSpeakerId === character.id ? <>
-                  <span className={`avatar avatar-${index}`} aria-hidden="true">{index === 0 ? "✳" : "Y"}</span>
+                  <span className={`avatar avatar-${index % 2}`} aria-hidden="true">{index === 0 ? "✳" : "Y"}</span>
                   <input className="inline-name-input speaker-name-input" value={speakerNameDraft} onChange={(event) => setSpeakerNameDraft(event.target.value)} onBlur={saveSpeakerName} onKeyDown={(event) => { if (event.key === "Enter") saveSpeakerName(); if (event.key === "Escape") setEditingSpeakerId(null); }} aria-label={`Rename ${character.name}`} maxLength={32} />
                 </> : <button className="speaker-select-button" onClick={() => selectSpeaker(character.id)} aria-pressed={currentSpeakerId === character.id}>
-                  <span className={`avatar avatar-${index}`} aria-hidden="true">{index === 0 ? "✳" : "Y"}</span>
+                  <span className={`avatar avatar-${index % 2}`} aria-hidden="true">{index === 0 ? "✳" : "Y"}</span>
                   <span className="speaker-name-button">{character.name}</span>
                   {currentSpeakerId === character.id && <span className="active-dot" aria-label="selected" />}
                 </button>}
@@ -168,7 +223,8 @@ export default function App() {
               </div>
             ))}
           </div>
-          <p className="sidebar-hint">Choose who’s speaking. Switch voices whenever a thought takes a turn.</p>
+          <button className="add-character-button" onClick={addSpeaker}>＋ Add character</button>
+          <p className="sidebar-hint">Choose who’s speaking. Press Ctrl + Shift to switch voices.</p>
         </div>
         <button className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`} aria-pressed={theme === "dark"}>
           <span className="theme-icon" aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span><span>{theme === "light" ? "Dark theme" : "Light theme"}</span><span className={`theme-switch ${theme === "dark" ? "on" : ""}`}><span /></span>
@@ -186,10 +242,10 @@ export default function App() {
             {renamingChat ? <input ref={chatNameRef} className="inline-name-input chat-title-input" value={chatNameDraft} onChange={(event) => setChatNameDraft(event.target.value)} onBlur={renameChat} onKeyDown={(event) => { if (event.key === "Enter") renameChat(); if (event.key === "Escape") setRenamingChat(false); }} maxLength={48} aria-label="Chat name" /> : <button className="chat-title-button" onClick={() => { setChatNameDraft(activeChat?.name ?? "Untitled thought"); setRenamingChat(true); }} title="Click to rename this chat">{activeChat?.name ?? "Untitled thought"}<span className="title-edit-icon">✎</span></button>}
           </div>
           <button className="mobile-theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`} title={theme === "light" ? "Dark theme" : "Light theme"}>{theme === "light" ? "☾" : "☀"}</button>
-          <button className="mobile-speaker-toggle" onClick={() => setMobileSpeakersOpen((open) => !open)} aria-expanded={mobileSpeakersOpen} aria-label="Choose speaker"><span className={`avatar ${speaker?.id === speakers[1]?.id ? "avatar-1" : "avatar-0"}`}>{speaker?.id === speakers[1]?.id ? "Y" : "✳"}</span><span className="chevron">⌄</span></button>
+          <button className="mobile-speaker-toggle" onClick={() => { setComposerSpeakersOpen(false); setMobileSpeakersOpen((open) => !open); }} aria-expanded={mobileSpeakersOpen} aria-label="Choose speaker"><span className={`avatar ${speaker?.id === speakers[1]?.id ? "avatar-1" : "avatar-0"}`}>{speaker?.id === speakers[1]?.id ? "Y" : "✳"}</span><span className="chevron">⌄</span></button>
         </header>
-        {mobileChatsOpen && <div className="mobile-chat-menu"><button className="mobile-new-chat" onClick={createChat}>＋ New chat</button>{workspace.chats.map((chat) => <button key={chat.id} className={activeChat?.id === chat.id ? "selected" : ""} onClick={() => { setWorkspace((previous) => ({ ...previous, activeChatId: chat.id })); setDraft(""); setRenamingChat(false); setMobileChatsOpen(false); }}><span>{chat.name || "Untitled thought"}</span><small>{chat.messages.length}</small></button>)}</div>}
-        {mobileSpeakersOpen && <div className="mobile-speaker-menu">{speakers.map((character, index) => <button key={character.id} className={currentSpeakerId === character.id ? "selected" : ""} onClick={() => { selectSpeaker(character.id); setMobileSpeakersOpen(false); }}><span className={`avatar avatar-${index}`}>{index === 0 ? "✳" : "Y"}</span>{character.name}<span className="mobile-rename" onClick={(event) => { event.stopPropagation(); beginSpeakerRename(character); setMobileSpeakersOpen(false); }}>✎</span></button>)}</div>}
+        {mobileChatsOpen && <div className="mobile-chat-menu"><button className="mobile-new-chat" onClick={createChat}>＋ New chat</button>{workspace.chats.map((chat) => <div key={chat.id} className={`mobile-chat-option ${activeChat?.id === chat.id ? "selected" : ""}`}><button onClick={() => { setWorkspace((previous) => ({ ...previous, activeChatId: chat.id })); setChatActionsId(chat.id); setDraft(""); setRenamingChat(false); setMobileChatsOpen(false); }}><span>{chat.name || "Untitled thought"}</span><small>{chat.messages.length}</small></button><button className="icon-action" onClick={() => deleteChat(chat.id)} aria-label={`Delete ${chat.name || "chat"}`} title="Delete chat"><TrashIcon /></button></div>)}</div>}
+        {mobileSpeakersOpen && <div className="mobile-speaker-menu">{speakers.map((character, index) => <button key={character.id} className={currentSpeakerId === character.id ? "selected" : ""} onClick={() => { selectSpeaker(character.id); setMobileSpeakersOpen(false); }}><span className={`avatar avatar-${index % 2}`}>{index === 0 ? "✳" : "Y"}</span>{character.name}<span className="mobile-rename" onClick={(event) => { event.stopPropagation(); beginSpeakerRename(character); setMobileSpeakersOpen(false); }}>✎</span></button>)}<button className="mobile-add-character" onClick={addSpeaker}>＋ Add character</button></div>}
 
         <div className="chat-scroll" ref={chatRef} aria-live="polite">
           <div className="chat-content">
@@ -208,7 +264,7 @@ export default function App() {
                   {messages.map((message, index) => {
                     const person = speakers.find((character) => character.id === message.user_id);
                     if (!person) return null;
-                    return <MessageBubble key={`${index}-${message.user_id}`} name={person.name} side={person.id === speakers[1]?.id ? "end" : "start"} content={message.content} />;
+                    return <MessageBubble key={`${index}-${message.user_id}`} name={person.name} side={speakers.findIndex((character) => character.id === person.id) % 2 === 1 ? "end" : "start"} content={message.content} onEdit={(content) => updateMessage(index, content)} onDelete={() => deleteMessage(index)} />;
                   })}
                 </div>
               </>
@@ -218,13 +274,14 @@ export default function App() {
 
         <footer className="composer-wrap">
           <form className="composer" onSubmit={sendMessage}>
-            <div className="composer-context"><span className={`avatar composer-avatar ${speaker?.id === speakers[1]?.id ? "avatar-1" : "avatar-0"}`}>{speaker?.id === speakers[1]?.id ? "Y" : "✳"}</span><span>Speaking as <strong>{speaker?.name}</strong></span></div>
+            <button type="button" className="composer-context" onClick={() => { setMobileSpeakersOpen(false); setComposerSpeakersOpen((open) => !open); }} aria-expanded={composerSpeakersOpen} aria-label={`Choose speaker, currently ${speaker?.name}`}><span className={`avatar composer-avatar ${speaker?.id === speakers[1]?.id ? "avatar-1" : "avatar-0"}`}>{speaker?.id === speakers[1]?.id ? "Y" : "✳"}</span><span>Speaking as <strong>{speaker?.name}</strong></span></button>
             <div className="composer-input-row">
               <textarea ref={textareaRef} value={draft} onChange={(event) => handleDraftChange(event.target.value)} onKeyDown={handleKeyDown} placeholder="Let your thoughts wander…" rows={1} aria-label="Write a thought" />
               <button className="send-button" type="submit" disabled={!draft.trim()} aria-label="Send thought"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button>
             </div>
             <div className="composer-foot"><span><kbd>↵</kbd> to send <span className="foot-separator">·</span> <kbd>shift ↵</kbd> for a new line</span><span className="gentle-reminder">Take your time <span>✦</span></span></div>
           </form>
+          {composerSpeakersOpen && <div className="composer-speaker-menu" role="dialog" aria-label="Choose speaker">{speakers.map((character, index) => <button key={character.id} type="button" className={currentSpeakerId === character.id ? "selected" : ""} onClick={() => { selectSpeaker(character.id); setComposerSpeakersOpen(false); }}><span className={`avatar avatar-${index % 2}`}>{index === 0 ? "✳" : "Y"}</span>{character.name}<span className="composer-speaker-check">{currentSpeakerId === character.id ? "✓" : ""}</span></button>)}</div>}
           <p className="local-caption">Your conversations stay in this browser.</p>
         </footer>
       </section>
