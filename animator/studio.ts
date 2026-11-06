@@ -1,14 +1,24 @@
-(() => {
+﻿// @ts-nocheck
+export function initializeStudio() {
   const $ = (id) => document.getElementById(id);
-  const object = $("motion-object");
-  const shadow = $("object-shadow");
+  let object = $("motion-object");
+  let shadow = $("object-shadow");
+  const layerList = $("layer-list");
+  object.dataset.elementId = "element-1";
+  object.dataset.elementName = "Shape 1";
+  shadow.dataset.elementId = "element-1";
+  shadow.dataset.elementName = "Shape 1";
+  let elementCounter = 1;
+  let mode = "solid";
+  const selectedIds = new Set(["element-1"]);
+  const elementStates = new Map();
+  const controlIds = ["color-input", "hex-input", "gradient-a", "gradient-a-hex", "gradient-b", "gradient-b-hex", "gradient-angle", "opacity", "radius", "shadow-toggle", "shadow-blur", "shadow-y", "shadow-color", "width", "height", "rotate", "scale", "move-x", "move-y", "tilt-x", "tilt-y", "perspective", "easing", "direction"];
   const stage = $("stage-wrap");
   const track = $("track");
   const recordBtn = $("record-btn");
   const pauseBtn = $("pause-btn");
   const stopBtn = $("stop-btn");
   const exportDialog = $("export-dialog");
-  let mode = "solid";
   let recording = false;
   let paused = false;
   let duration = 2000;
@@ -59,21 +69,22 @@
       ? Math.max(0, performance.now() - startedAt - pausedTotal)
       : currentTime;
   }
-  function applyFrame(f, animate = false) {
+  function applyFrame(f, animate = false, target = object) {
+    const targetShadow = target.closest(".object-shadow");
     const tx = f.x || 0,
       ty = f.y || 0;
-    object.style.transition = animate ? "none" : "";
-    object.style.background = f.fill;
-    object.style.opacity = f.opacity;
-    object.style.borderRadius = `${f.radius}px`;
-    object.style.width = `${f.width}px`;
-    object.style.height = `${f.height}px`;
-    object.style.transform = `perspective(${f.perspective}px) translate(${tx}px, ${ty}px) rotate(${f.rotate}deg) scale(${f.scale}) rotateX(${f.tiltX}deg) rotateY(${f.tiltY}deg)`;
-    object.style.perspective = `${f.perspective}px`;
-    object.style.boxShadow = f.shadow
+    target.style.transition = animate ? "none" : "";
+    target.style.background = f.fill;
+    target.style.opacity = f.opacity;
+    target.style.borderRadius = `${f.radius}px`;
+    target.style.width = `${f.width}px`;
+    target.style.height = `${f.height}px`;
+    target.style.transform = `perspective(${f.perspective}px) translate(${tx}px, ${ty}px) rotate(${f.rotate}deg) scale(${f.scale}) rotateX(${f.tiltX}deg) rotateY(${f.tiltY}deg)`;
+    target.style.perspective = `${f.perspective}px`;
+    target.style.boxShadow = f.shadow
       ? `0 ${f.shadowY}px ${f.shadowBlur}px ${rgbAlpha(f.shadowColor, 0.28)}`
       : "none";
-    shadow.style.filter = f.shadow
+    targetShadow.style.filter = f.shadow
       ? `drop-shadow(0 ${Math.max(0, f.shadowY / 2)}px ${Math.max(0, f.shadowBlur / 2)}px ${rgbAlpha(f.shadowColor, 0.13)})`
       : "none";
     $("coordinates").innerHTML = `X ${tx}&nbsp;&nbsp; Y ${ty}`;
@@ -84,12 +95,167 @@
     $("perspective-value").textContent = `${f.perspective} px`;
     $("size-summary").textContent = `Rectangle \u00b7 ${Math.round(f.width)} \u00d7 ${Math.round(f.height)}`;
   }
-  function updateUI() {
+  function updateUI(applySelection = true) {
     const f = snapshot();
+    const previous = new Map(selectedObjects().map((el) => [el.dataset.elementId, elementStates.get(el.dataset.elementId)]));
+    const previousActive = previous.get(object.dataset.elementId) || {};
     applyFrame(f);
     $("solid-swatch").style.background = $("color-input").value;
-    document.querySelector(".layer-mini").style.background = cssFill();
+    document.querySelectorAll(`[data-preview-for="${object.dataset.elementId}"]`).forEach((el) => el.style.background = cssFill());
+    saveControls();
+    if (applySelection) selectedObjects().forEach((el) => {
+      if (el !== object) {
+        const old = previous.get(el.dataset.elementId) || previousActive;
+        const dx = (Number(old["move-x"]) || 0) - (Number(previousActive["move-x"]) || 0);
+        const dy = (Number(old["move-y"]) || 0) - (Number(previousActive["move-y"]) || 0);
+        applyFrame({ ...f, x: f.x + dx, y: f.y + dy }, false, el);
+      }
+      const values = { ...elementStates.get(object.dataset.elementId) };
+      const old = previous.get(el.dataset.elementId) || previousActive;
+      values["move-x"] = String(n("move-x") + (Number(old["move-x"]) || 0) - (Number(previousActive["move-x"]) || 0));
+      values["move-y"] = String(n("move-y") + (Number(old["move-y"]) || 0) - (Number(previousActive["move-y"]) || 0));
+      elementStates.set(el.dataset.elementId, values);
+    });
+    renderLayerList();
   }
+  function selectedObjects() {
+    return [...selectedIds].map((id) => stage.querySelector(`[data-element-id="${id}"].motion-object`)).filter(Boolean);
+  }
+  function saveControls() {
+    const values = {};
+    controlIds.forEach((id) => { const el = $(id); values[id] = el.type === "checkbox" ? el.checked : el.value; });
+    values.mode = mode;
+    elementStates.set(object.dataset.elementId, values);
+  }
+  function loadControls(id) {
+    const values = elementStates.get(id);
+    if (values) {
+      controlIds.forEach((key) => { const el = $(key); if (el.type === "checkbox") el.checked = values[key]; else el.value = values[key]; });
+      mode = values.mode || "solid";
+    }
+    document.querySelectorAll(".fill-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === mode));
+    $("solid-field").hidden = mode !== "solid";
+    $("gradient-fields").hidden = mode !== "gradient";
+  }
+  function selectElements(ids) {
+    if (!ids.length) return;
+    saveControls();
+    selectedIds.clear(); ids.forEach((id) => selectedIds.add(id));
+    object = stage.querySelector(`[data-element-id="${ids[0]}"].motion-object`);
+    if (!object) return;
+    shadow = object.closest(".object-shadow");
+    loadControls(object.dataset.elementId);
+    updateUI(false);
+  }
+  function renderLayerList() {
+    const items = [...stage.querySelectorAll(".motion-object")];
+    layerList.replaceChildren();
+    const groups = new Map();
+    items.forEach((item) => { const group = item.closest(".object-shadow").dataset.group; if (group) groups.set(group, [...(groups.get(group) || []), item]); });
+    items.forEach((item) => {
+      const wrapper = item.closest(".object-shadow");
+      const group = wrapper.dataset.group;
+      if (group && groups.get(group)[0] !== item) return;
+      if (group) {
+        const row = document.createElement("button");
+        row.className = "layer-row group-row";
+        row.setAttribute("role", "treeitem");
+        row.dataset.group = group;
+        row.innerHTML = `<span class="layer-icon group-icon">G</span><span class="layer-name">${group}</span><span class="layer-count">${groups.get(group).length}</span>`;
+        row.classList.toggle("selected", groups.get(group).every((el) => selectedIds.has(el.dataset.elementId)));
+        layerList.append(row);
+      }
+      const row = document.createElement("button");
+      row.className = `layer-row${group ? " child-layer" : ""}`;
+      row.setAttribute("role", "treeitem");
+      row.dataset.elementId = item.dataset.elementId;
+      row.innerHTML = `<span class="layer-icon"><span style="background:${item.style.background || "#7868f6"}"></span></span><span class="layer-name">${item.dataset.elementName}</span>`;
+      row.classList.toggle("selected", selectedIds.has(item.dataset.elementId));
+      layerList.append(row);
+    });
+    const grouped = selectedObjects().some((el) => el.closest(".object-shadow").dataset.group);
+    $("group-elements").disabled = selectedIds.size < 2 || grouped;
+    $("ungroup-elements").disabled = !grouped;
+  }
+  function createElement() {
+    elementCounter++;
+    const wrapper = shadow.cloneNode(true);
+    const shape = wrapper.querySelector(".motion-object");
+    const id = `element-${elementCounter}`;
+    wrapper.dataset.elementId = id;
+    wrapper.dataset.elementName = `Shape ${elementCounter}`;
+    delete wrapper.dataset.group;
+    wrapper.removeAttribute("id");
+    shape.dataset.elementId = id;
+    shape.dataset.elementName = `Shape ${elementCounter}`;
+    shape.removeAttribute("id");
+    shape.setAttribute("aria-label", `Animated shape ${elementCounter}, draggable`);
+    shape.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));
+    stage.insertBefore(wrapper, $("coordinates"));
+    bindShape(shape);
+    elementStates.set(id, null);
+    selectElements([id]);
+    $("move-x").value = (elementCounter - 1) * 28;
+    $("move-y").value = (elementCounter - 1) * 24;
+    updateUI();
+    toast(`${shape.dataset.elementName} added.`);
+  }
+  $("add-element").addEventListener("click", createElement);
+  $("group-elements").addEventListener("click", () => {
+    if (selectedIds.size < 2) return;
+    const groupCount = new Set([...stage.querySelectorAll(".object-shadow")].map((el) => el.dataset.group).filter(Boolean)).size;
+    const groupName = `Group ${groupCount + 1}`;
+    selectedObjects().forEach((el) => { el.closest(".object-shadow").dataset.group = groupName; });
+    renderLayerList(); toast(`${groupName} created.`);
+  });
+  $("ungroup-elements").addEventListener("click", () => {
+    const names = new Set(selectedObjects().map((el) => el.closest(".object-shadow").dataset.group).filter(Boolean));
+    stage.querySelectorAll(".object-shadow").forEach((el) => { if (names.has(el.dataset.group)) delete el.dataset.group; });
+    renderLayerList(); toast("Group removed.");
+  });
+  layerList.addEventListener("click", (event) => {
+    const row = event.target.closest(".layer-row");
+    if (!row) return;
+    if (row.dataset.group) {
+      const ids = [...stage.querySelectorAll(`.object-shadow[data-group="${row.dataset.group}"] .motion-object`)].map((el) => el.dataset.elementId);
+      selectElements(ids);
+    } else if (event.ctrlKey || event.metaKey) {
+      const next = new Set(selectedIds);
+      next.has(row.dataset.elementId) ? next.delete(row.dataset.elementId) : next.add(row.dataset.elementId);
+      selectElements([...next]);
+    } else selectElements([row.dataset.elementId]);
+  });
+  function bindShape(shape) {
+    shape.addEventListener("pointerdown", (e) => {
+      if (!selectedIds.has(shape.dataset.elementId) || selectedIds.size > 1) selectElements([shape.dataset.elementId]);
+      const handle = e.target.closest("[data-resize]");
+      if (handle) {
+        e.preventDefault(); e.stopPropagation();
+        resizing = { direction: handle.dataset.resize, startX: e.clientX, startY: e.clientY, width: n("width"), height: n("height") };
+        shape.setPointerCapture(e.pointerId); return;
+      }
+      if (recording && paused) return;
+      dragging = true; dragPoint = { x: e.clientX - n("move-x"), y: e.clientY - n("move-y") };
+      shape.setPointerCapture(e.pointerId);
+    });
+    shape.addEventListener("pointermove", (e) => {
+      if (shape !== object) return;
+      if (resizing) {
+        const dx = e.clientX - resizing.startX, dy = e.clientY - resizing.startY, dir = resizing.direction, zoomFactor = zoom / 100;
+        if (dir.includes("e")) $("width").value = Math.max(20, Math.min(800, resizing.width + dx / zoomFactor));
+        if (dir.includes("w")) $("width").value = Math.max(20, Math.min(800, resizing.width - dx / zoomFactor));
+        if (dir.includes("s")) $("height").value = Math.max(20, Math.min(800, resizing.height + dy / zoomFactor));
+        if (dir.includes("n")) $("height").value = Math.max(20, Math.min(800, resizing.height - dy / zoomFactor));
+        $("width").value = Math.round(n("width")); $("height").value = Math.round(n("height")); updateUI(); addKeyframe(); return;
+      }
+      if (!dragging) return;
+      $("move-x").value = Math.round(e.clientX - dragPoint.x); $("move-y").value = Math.round(e.clientY - dragPoint.y); updateUI(); addKeyframe();
+    });
+    shape.addEventListener("pointerup", () => { dragging = false; resizing = null; });
+    shape.addEventListener("pointercancel", () => { dragging = false; resizing = null; });
+  }
+  bindShape(object);
+
   function addKeyframe() {
     if (!recording || paused) return;
     const frame = snapshot(now());
@@ -417,50 +583,6 @@
     setProgress(t);
     if (keyframes.length) applyFrame(frameAt(t));
   });
-  object.addEventListener("pointerdown", (e) => {
-    const handle = e.target.closest("[data-resize]");
-    if (handle) {
-      e.preventDefault();
-      e.stopPropagation();
-      resizing = {
-        direction: handle.dataset.resize,
-        startX: e.clientX,
-        startY: e.clientY,
-        width: n("width"),
-        height: n("height"),
-      };
-      object.setPointerCapture(e.pointerId);
-      return;
-    }
-    if (recording && paused) return;
-    dragging = true;
-    dragPoint = { x: e.clientX - n("move-x"), y: e.clientY - n("move-y") };
-    object.setPointerCapture(e.pointerId);
-  });
-  object.addEventListener("pointermove", (e) => {
-    if (resizing) {
-      const dx = e.clientX - resizing.startX;
-      const dy = e.clientY - resizing.startY;
-      const dir = resizing.direction;
-      const zoomFactor = zoom / 100;
-      if (dir.includes("e")) $("width").value = Math.max(20, Math.min(800, resizing.width + dx / zoomFactor));
-      if (dir.includes("w")) $("width").value = Math.max(20, Math.min(800, resizing.width - dx / zoomFactor));
-      if (dir.includes("s")) $("height").value = Math.max(20, Math.min(800, resizing.height + dy / zoomFactor));
-      if (dir.includes("n")) $("height").value = Math.max(20, Math.min(800, resizing.height - dy / zoomFactor));
-      $("width").value = Math.round(n("width"));
-      $("height").value = Math.round(n("height"));
-      updateUI();
-      addKeyframe();
-      return;
-    }
-    if (!dragging) return;
-    $("move-x").value = Math.round(e.clientX - dragPoint.x);
-    $("move-y").value = Math.round(e.clientY - dragPoint.y);
-    updateUI();
-    addKeyframe();
-  });
-  object.addEventListener("pointerup", () => { dragging = false; resizing = null; });
-  object.addEventListener("pointercancel", () => { dragging = false; resizing = null; });
   $("grid-toggle").addEventListener("click", () => {
     $("stage-grid").classList.toggle("off");
     $("grid-toggle").classList.toggle("active");
@@ -469,7 +591,7 @@
   function setZoom(v) {
     zoom = Math.max(60, Math.min(140, v));
     $("zoom-value").textContent = `${zoom}%`;
-    object.style.zoom = zoom / 100;
+    stage.querySelectorAll(".motion-object").forEach((el) => el.style.zoom = zoom / 100);
   }
   $("zoom-in").addEventListener("click", () => setZoom(zoom + 10));
   $("zoom-out").addEventListener("click", () => setZoom(zoom - 10));
@@ -570,4 +692,5 @@
   });
   updateDuration();
   updateUI();
-})();
+}
+
